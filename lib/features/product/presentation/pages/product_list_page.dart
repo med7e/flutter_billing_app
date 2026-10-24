@@ -15,6 +15,7 @@ class ProductListPage extends StatefulWidget {
 
 class _ProductListPageState extends State<ProductListPage> {
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _customerController = TextEditingController();
   String _searchQuery = '';
 
   @override
@@ -30,6 +31,7 @@ class _ProductListPageState extends State<ProductListPage> {
   @override
   void dispose() {
     _searchController.dispose();
+    _customerController.dispose();
     super.dispose();
   }
 
@@ -41,13 +43,41 @@ class _ProductListPageState extends State<ProductListPage> {
       if (matchedProduct != null) {
         _searchController.text = matchedProduct.name;
       } else {
-        _searchController.text =
-            barcode; // If not found, just put barcode in search
+        _searchController.text = barcode;
       }
     }
   }
 
-  @override
+  // فتح الآلة الحاسبة المدمجة
+  void _openCalculator(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.6,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            const Text('الآلة الحاسبة',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Divider(),
+            const Expanded(
+              child: Center(
+                child: Text('واجهة الآلة الحاسبة السريعة للحسابات الجانبية',
+                    style: TextStyle(color: Colors.grey)),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إغلاق'),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  @write
   Widget build(BuildContext context) {
     final borderColor = Colors.grey[100]!;
 
@@ -60,13 +90,33 @@ class _ProductListPageState extends State<ProductListPage> {
               size: 28, color: Theme.of(context).primaryColor),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Product Management',
+        title: const Text('إدارة المنتجات والمبيعات',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calculate_outlined, color: AppTheme.primaryColor),
+            tooltip: 'الآلة الحاسبة',
+            onPressed: () => _openCalculator(context),
+          ),
+        ],
       ),
       body: Column(
         children: [
-          // Search Bar
+          // شريط اسم الزبون
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: TextFormField(
+              controller: _customerController,
+              decoration: const InputDecoration(
+                labelText: 'اسم الزبون (اختياري)',
+                prefixIcon: Icon(Icons.person_outline),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ),
+
+          // شريط البحث والماسح الضوئي
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: BlocBuilder<ProductBloc, ProductState>(
@@ -81,14 +131,13 @@ class _ProductListPageState extends State<ProductListPage> {
                           controller: _searchController,
                           textCapitalization: TextCapitalization.words,
                           decoration: InputDecoration(
-                            hintText: 'Scan or enter barcode',
+                            hintText: 'امسح أو أدخل الباروكود',
                             prefixIcon: Icon(
                               Icons.search,
                               color: Colors.grey[400],
                             ),
                           ),
-                          validator:
-                              AppValidators.required('Please enter a barcode'),
+                          validator: AppValidators.required('المرجو إدخال الرمز'),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -106,14 +155,12 @@ class _ProductListPageState extends State<ProductListPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  const Text('Tap the icon to open camera scanner',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF4C669A))),
                 ],
               );
             }),
           ),
 
+          // عرض قائمة المنتجات مع الأسعار بالدرهم DH
           Expanded(
             child: BlocConsumer<ProductBloc, ProductState>(
               listener: (context, state) {
@@ -140,11 +187,8 @@ class _ProductListPageState extends State<ProductListPage> {
                 }
 
                 if (state.products.isEmpty) {
-                  if (state.status == ProductStatus.error) {
-                    return Center(child: Text('Error: ${state.message}'));
-                  }
                   return const Center(
-                      child: Text('No products found. Add some!'));
+                      child: Text('لا توجد منتجات حالياً. أضف بعض المنتجات!'));
                 }
 
                 final filteredProducts = state.products
@@ -152,11 +196,6 @@ class _ProductListPageState extends State<ProductListPage> {
                         product.name.toLowerCase().contains(_searchQuery) ||
                         product.barcode.toLowerCase().contains(_searchQuery))
                     .toList();
-
-                if (filteredProducts.isEmpty) {
-                  return const Center(
-                      child: Text('No products match your search.'));
-                }
 
                 return ListView.separated(
                   padding: const EdgeInsets.only(
@@ -205,37 +244,19 @@ class _ProductListPageState extends State<ProductListPage> {
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primaryColor
-                                      .withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: IconButton(
-                                  icon: const Icon(Icons.edit_rounded,
-                                      color: AppTheme.primaryColor, size: 20),
-                                  constraints: const BoxConstraints(),
-                                  padding: const EdgeInsets.all(8),
-                                  onPressed: () {
-                                    context.push('/products/edit/${product.id}',
-                                        extra: product);
-                                  },
-                                ),
+                              IconButton(
+                                icon: const Icon(Icons.edit_rounded,
+                                    color: AppTheme.primaryColor, size: 20),
+                                onPressed: () {
+                                  context.push('/products/edit/${product.id}',
+                                      extra: product);
+                                },
                               ),
-                              const SizedBox(width: 8),
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.red.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: IconButton(
-                                  icon: const Icon(Icons.delete_outline_rounded,
-                                      color: Colors.red, size: 20),
-                                  constraints: const BoxConstraints(),
-                                  padding: const EdgeInsets.all(8),
-                                  onPressed: () =>
-                                      _confirmDelete(context, product),
-                                ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline_rounded,
+                                    color: Colors.red, size: 20),
+                                onPressed: () =>
+                                    _confirmDelete(context, product),
                               ),
                             ],
                           )
@@ -264,19 +285,19 @@ class _ProductListPageState extends State<ProductListPage> {
       context: context,
       builder: (innerContext) {
         return AlertDialog(
-          title: const Text('Delete Product'),
-          content: Text('Are you sure you want to delete ${product.name}?'),
+          title: const Text('حذف المنتج'),
+          content: Text('هل أنت تأكد من حذف ${product.name}؟'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(innerContext),
-              child: const Text('Cancel'),
+              child: const Text('إلغاء'),
             ),
             TextButton(
               onPressed: () {
                 context.read<ProductBloc>().add(DeleteProduct(product.id));
                 Navigator.pop(innerContext);
               },
-              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+              child: const Text('حذف', style: TextStyle(color: Colors.red)),
             ),
           ],
         );
